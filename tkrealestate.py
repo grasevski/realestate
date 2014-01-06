@@ -25,9 +25,11 @@ def main():
 
     def export():
         """Run the real estate program"""
-        filehandle = tkFileDialog.asksaveasfile()
-        realestate.realestate(command.get(), search.get(), filehandle)
-        filehandle.close()
+        types = 'CSV {.csv}', 'Text {.txt}', 'All *'
+        filehandle = tkFileDialog.asksaveasfile(filetypes=types)
+        if filehandle:
+            realestate.realestate(command.get(), search.get(), filehandle)
+            filehandle.close()
 
     button = ttk.Button(frame, text='Export', command=export)
     button.grid(row=0, column=3)
