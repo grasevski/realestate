@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 """Real estate web crawler"""
+import signal
+import argparse
+import sys
 import re
 import scrapy.item
 import scrapy.selector
@@ -53,17 +56,9 @@ class RealestateSpider(scrapy.contrib.spiders.CrawlSpider):
             yield item
 
 
-def main():
-    """Output the real estate search results in csv format"""
-    import signal
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    import argparse
-    parser = argparse.ArgumentParser(description='Realestate search results.')
-    parser.add_argument('command', choices=['buy', 'rent', 'sold'])
-    parser.add_argument('search')
-    args = parser.parse_args()
-    import sys
-    exporter = scrapy.contrib.exporter.CsvItemExporter(sys.stdout)
+def realestate(command, search, filehandle):
+    """Writes the real estate search results to the given file handle"""
+    exporter = scrapy.contrib.exporter.CsvItemExporter(filehandle)
 
     def catch_item(sender, item, **kwargs):
         """Output item as a csv line"""
@@ -79,8 +74,18 @@ def main():
     crawler = scrapy.crawler.CrawlerProcess(scrapy.conf.settings)
     crawler.install()
     crawler.configure()
-    crawler.crawl(RealestateSpider(args.command, args.search))
+    crawler.crawl(RealestateSpider(command, search))
     crawler.start()
+
+
+def main():
+    """Output the real estate search results in csv format"""
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    parser = argparse.ArgumentParser(description='Realestate search results.')
+    parser.add_argument('command', choices=['buy', 'rent', 'sold'])
+    parser.add_argument('search')
+    args = parser.parse_args()
+    realestate(args.command, args.search, sys.stdout)
 
 if __name__ == '__main__':
     main()
