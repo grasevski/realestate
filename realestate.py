@@ -15,12 +15,21 @@ import scrapy.conf
 import scrapy.crawler
 
 
+EXPORT_FIELDS = [
+        'beds', 'bathrooms', 'cars', 'property_type', 'price',
+        'address', 'url', 'title', 'description'
+]
+
+
 class RealestateItem(scrapy.item.Item):
     """A real estate listing summary"""
-    name = scrapy.item.Field()
+    beds = scrapy.item.Field()
+    bathrooms = scrapy.item.Field()
+    cars = scrapy.item.Field()
+    property_type = scrapy.item.Field()
     price = scrapy.item.Field()
-    propertyType = scrapy.item.Field()
-    propertyFeatures = scrapy.item.Field()
+    address = scrapy.item.Field()
+    url = scrapy.item.Field()
     title = scrapy.item.Field()
     description = scrapy.item.Field()
 
@@ -34,31 +43,53 @@ class RealestateSpider(scrapy.contrib.spiders.CrawlSpider):
         search = re.sub(r'\s+', '+', re.sub(',+', '%2c', search)).lower()
         url = '/{0}/in-{{0}}{{{{0}}}}/list-{{{{1}}}}'.format(command)
         start_url = 'http://www.{0}{1}'
-        start_url = start_url.format(self.allowed_domains[0],
-                url.format(search))
+        start_url = start_url.format(
+                self.allowed_domains[0], url.format(search)
+        )
         self.start_urls = [start_url.format('', 1)]
         extractor = scrapy.contrib.linkextractors.sgml.SgmlLinkExtractor(
-                allow=url.format(re.escape(search)).format('.*', ''))
-        rule = scrapy.contrib.spiders.Rule(extractor,
-                callback='parse_items', follow=True)
+                allow=url.format(re.escape(search)).format('.*', '')
+        )
+        rule = scrapy.contrib.spiders.Rule(
+                extractor, callback='parse_items', follow=True
+        )
         self.rules = [rule]
         super(RealestateSpider, self).__init__()
 
     def parse_items(self, response):
         """Parse a page of real estate listings"""
         hxs = scrapy.selector.HtmlXPathSelector(response)
-        xpath = '//{0}[contains(@class, "{1}")]'
-        for i in hxs.select(xpath.format('div', 'resultBody')):
+        for i in hxs.select('//div[contains(@class, "resultBody")]'):
             item = RealestateItem()
-            for field in item.fields:
-                path = '.{0}//text()'.format(xpath.format('*', field))
-                item[field] = i.select(path).extract()
+            path = 'div[contains(@class, "propertyStats")]//text()'
+            item['price'] = i.select(path).extract()
+            vcard = i.select('div[contains(@class, "vcard")]//a')
+            item['address'] = vcard.select('text()').extract()
+            url = vcard.select('@href').extract()
+            if len(url) == 1:
+                item['url'] = 'http://www.{0}{1}'.format(
+                        self.allowed_domains[0], url[0]
+                )
+            listing = i.select('div[contains(@class, "listingInfo")]')
+            item['property_type'] = listing.select('span/text()').extract()
+            item['title'] = listing.select('h3/text()').extract()
+            item['description'] = listing.select('p/text()').extract()
+            features = listing.select('ul')
+            mapping = (
+                    ('beds', 'Bedrooms'), ('bathrooms', 'Bathrooms'),
+                    ('cars', 'Car Spaces')
+            )
+            for field, val in mapping:
+                path = 'li/img[@alt="{0}"]/../span/text()'.format(val)
+                item[field] = features.select(path).extract() or 0
             yield item
 
 
 def realestate(command, search, filehandle):
     """Writes the real estate search results to the given file handle"""
-    exporter = scrapy.contrib.exporter.CsvItemExporter(filehandle)
+    exporter = scrapy.contrib.exporter.CsvItemExporter(
+            filehandle, fields_to_export=EXPORT_FIELDS
+    )
 
     def catch_item(sender, item, **kwargs):
         """Output item as a csv line"""
@@ -86,6 +117,5 @@ def main():
     parser.add_argument('search')
     args = parser.parse_args()
     realestate(args.command, args.search, sys.stdout)
-
 if __name__ == '__main__':
     main()
