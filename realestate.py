@@ -4,6 +4,7 @@ import signal
 import argparse
 import sys
 import re
+import HTMLParser
 import scrapy.item
 import scrapy.selector
 import scrapy.contrib.linkextractors.sgml
@@ -72,8 +73,10 @@ class RealestateSpider(scrapy.contrib.spiders.CrawlSpider):
                 )
             listing = i.select('div[contains(@class, "listingInfo")]')
             item['property_type'] = listing.select('span/text()').extract()
-            item['title'] = listing.select('h3/text()').extract()
-            item['description'] = listing.select('p/text()').extract()
+            item['title'] = unescape(listing.select('h3/text()').extract())
+            item['description'] = unescape(
+                    listing.select('p/text()').extract()
+            )
             features = listing.select('ul')
             mapping = (
                     ('beds', 'Bedrooms'), ('bathrooms', 'Bathrooms'),
@@ -83,6 +86,11 @@ class RealestateSpider(scrapy.contrib.spiders.CrawlSpider):
                 path = 'li/img[@alt="{0}"]/../span/text()'.format(val)
                 item[field] = features.select(path).extract() or 0
             yield item
+
+
+def unescape(data):
+    """Unescape html text"""
+    return HTMLParser.HTMLParser().unescape(','.join(data))
 
 
 def realestate(command, search, filehandle):
