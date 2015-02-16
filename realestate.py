@@ -62,16 +62,16 @@ class RealestateSpider(scrapy.contrib.spiders.CrawlSpider):
         hxs = scrapy.selector.HtmlXPathSelector(response)
         for i in hxs.select('//div[contains(@class, "resultBody")]'):
             item = RealestateItem()
-            path = 'div[contains(@class, "propertyStats")]//text()'
+            path = './/div[contains(@class, "propertyStats")]//text()'
             item['price'] = i.select(path).extract()
-            vcard = i.select('div[contains(@class, "vcard")]//a')
+            vcard = i.select('//div[contains(@class, "vcard")]//a')
             item['address'] = vcard.select('text()').extract()
             url = vcard.select('@href').extract()
             if len(url) == 1:
                 item['url'] = 'http://www.{0}{1}'.format(
                         self.allowed_domains[0], url[0]
                 )
-            listing = i.select('div[contains(@class, "listingInfo")]')
+            listing = i.select('.//div[contains(@class, "listingInfo")]')
             item['property_type'] = listing.select('span/text()').extract()
             item['title'] = unescape(listing.select('h3/text()').extract())
             item['description'] = unescape(
