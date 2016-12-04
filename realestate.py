@@ -16,23 +16,17 @@ import scrapy.conf
 import scrapy.crawler
 
 
-EXPORT_FIELDS = [
-        'beds', 'bathrooms', 'cars', 'property_type', 'price',
-        'address', 'url', 'title', 'description'
-]
+EXPORT_FIELDS = ['bed', 'bath', 'car', 'price', 'address', 'url']
 
 
 class RealestateItem(scrapy.item.Item):
     """A real estate listing summary"""
-    beds = scrapy.item.Field()
-    bathrooms = scrapy.item.Field()
-    cars = scrapy.item.Field()
-    property_type = scrapy.item.Field()
+    bed = scrapy.item.Field()
+    bath = scrapy.item.Field()
+    car = scrapy.item.Field()
     price = scrapy.item.Field()
     address = scrapy.item.Field()
     url = scrapy.item.Field()
-    title = scrapy.item.Field()
-    description = scrapy.item.Field()
 
 
 class RealestateSpider(scrapy.contrib.spiders.CrawlSpider):
@@ -60,7 +54,7 @@ class RealestateSpider(scrapy.contrib.spiders.CrawlSpider):
     def parse_items(self, response):
         """Parse a page of real estate listings"""
         hxs = scrapy.selector.HtmlXPathSelector(response)
-        for i in hxs.select('//div[contains(@class, "resultBody")]'):
+        for i in hxs.select('//div[contains(@class, "listingInfo")]'):
             item = RealestateItem()
             path = 'div[contains(@class, "propertyStats")]//text()'
             item['price'] = i.select(path).extract()
@@ -71,19 +65,12 @@ class RealestateSpider(scrapy.contrib.spiders.CrawlSpider):
                 item['url'] = 'http://www.{0}{1}'.format(
                         self.allowed_domains[0], url[0]
                 )
-            listing = i.select('div[contains(@class, "listingInfo")]')
-            item['property_type'] = listing.select('span/text()').extract()
-            item['title'] = unescape(listing.select('h3/text()').extract())
-            item['description'] = unescape(
-                    listing.select('p/text()').extract()
-            )
-            features = listing.select('ul')
-            mapping = (
-                    ('beds', 'Bedrooms'), ('bathrooms', 'Bathrooms'),
-                    ('cars', 'Car Spaces')
-            )
-            for field, val in mapping:
-                path = 'li/img[@alt="{0}"]/../span/text()'.format(val)
+            features = i.select('dl')
+            for field in ('bed', 'bath', 'car'):
+                path = '(@class, "rui-icon-{0}")'.format(field)
+                path = 'dt[contains{0}]'.format(path)
+                path = '{0}/following-sibling::dd[1]'.format(path)
+                path = '{0}/text()'.format(path)
                 item[field] = features.select(path).extract() or 0
             yield item
 
