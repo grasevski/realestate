@@ -3,6 +3,8 @@ realestate
 
 realestate.com.au command line interface
 
+NB this no longer works, I rewrote it in golang which can be found here: https://gist.github.com/grasevski/b5528ec1929423326e5cdc59dde6e183
+
 
 INSTALL
 -------
